@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Réserver sur Athlima</title>
+<meta property="og:title" content="Réserve ta séance sur Athlima">
+<meta property="og:description" content="Réserve ton coach en quelques secondes.">
+<style>
+  :root { --brand:#1105F5; --soft:#ECEBFF; --ink:#11142A; --muted:#6B7186; --bg:#F6F7FB; --border:#ECEEF4; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:520px; margin:0 auto; min-height:100vh; }
+  .hero { position:relative; height:300px; background:#222 center/cover no-repeat; }
+  .hero::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, rgba(17,5,245,.35), rgba(0,0,0,.55)); }
+  .card { background:#fff; border-radius:28px 28px 0 0; margin-top:-32px; position:relative; padding:26px 22px 40px; box-shadow:0 -8px 30px rgba(0,0,0,.12); }
+  .avatar { width:84px; height:84px; border-radius:22px; object-fit:cover; border:3px solid #fff; box-shadow:0 6px 18px rgba(0,0,0,.18); margin-top:-70px; position:relative; background:var(--soft); }
+  h1 { font-size:26px; margin:14px 0 4px; }
+  .rating { color:var(--muted); font-size:14px; margin-bottom:14px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 18px; }
+  .chip { background:var(--soft); color:var(--brand); font-weight:600; font-size:13px; padding:6px 12px; border-radius:999px; }
+  .bio { color:var(--ink); font-size:15px; line-height:1.55; margin-bottom:22px; }
+  .cta { display:block; width:100%; background:var(--brand); color:#fff; text-align:center; text-decoration:none;
+         font-weight:700; font-size:17px; padding:16px; border-radius:16px; border:0; cursor:pointer; }
+  .cta.sub { background:#fff; color:var(--brand); border:1.5px solid var(--brand); margin-top:10px; }
+  .foot { text-align:center; color:var(--muted); font-size:12px; margin-top:18px; }
+  .brand { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--brand); font-weight:800; letter-spacing:1px; padding:16px; }
+  .loading { text-align:center; padding:80px 20px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">ATHLIMA</div>
+  <div id="content"><div class="loading">Chargement…</div></div>
+  <div class="foot">Page propulsée par <strong>Athlima</strong> — le sport près de chez vous.</div>
+</div>
+
+<script>
+const SUPA_URL = "https://gvebjcvenrlrfmrbadum.supabase.co";
+const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2ZWJqY3ZlbnJscmZtcmJhZHVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MzI0NTgsImV4cCI6MjA5NjMwODQ1OH0.J58WmYH1nclt3XcJ5i0WnIjV3BQwINy40gFw_VuV-wI";
+const APP_STORE = "https://apps.apple.com/";
+
+const SPORTS = {padel:"Padel",yoga:"Yoga",tennis:"Tennis",running:"Running",fitness:"Fitness",football:"Football",natation:"Natation",boxe:"Boxe",danse:"Danse",surf:"Surf",musculation:"Musculation",crossfit:"CrossFit"};
+function sportName(s){ return SPORTS[s] || s.replace(/-/g," ").replace(/\b\w/g, c=>c.toUpperCase()); }
+
+function getParam(n){ return new URLSearchParams(location.search).get(n); }
+
+async function load(){
+  const id = getParam("id");
+  const el = document.getElementById("content");
+  if(!id){ el.innerHTML = '<div class="loading">Lien invalide.</div>'; return; }
+  try{
+    const r = await fetch(`${SUPA_URL}/rest/v1/partners?id=eq.${id}&select=name,avatar,bio,sport_slugs,rating,review_count,photos`, {
+      headers: { apikey: ANON, Authorization: "Bearer "+ANON }
+    });
+    const data = await r.json();
+    const p = data[0];
+    if(!p){ el.innerHTML = '<div class="loading">Coach introuvable.</div>'; return; }
+    const hero = (p.photos && p.photos[0]) || p.avatar || "";
+    const chips = (p.sport_slugs||[]).map(s=>`<span class="chip">${sportName(s)}</span>`).join("");
+    const rating = p.review_count>0 ? `★ ${Number(p.rating).toFixed(1)} · ${p.review_count} avis` : "Nouveau sur Athlima";
+    const deep = `athlima://coach/${id}`;
+    el.innerHTML = `
+      <div class="hero" style="background-image:url('${hero}')"></div>
+      <div class="card">
+        ${p.avatar?`<img class="avatar" src="${p.avatar}">`:`<div class="avatar"></div>`}
+        <h1>${p.name||"Coach"}</h1>
+        <div class="rating">${rating}</div>
+        <div class="chips">${chips}</div>
+        ${p.bio?`<div class="bio">${p.bio}</div>`:""}
+        <button class="cta" id="book">Réserver une séance</button>
+        <a class="cta sub" href="${APP_STORE}">Télécharger l'app Athlima</a>
+      </div>`;
+    document.getElementById("book").onclick = ()=>{
+      // tente d'ouvrir l'app, sinon redirige vers l'App Store
+      const t = Date.now();
+      window.location.href = deep;
+      setTimeout(()=>{ if(Date.now()-t < 1600) window.location.href = APP_STORE; }, 1200);
+    };
+    document.title = `Réserver avec ${p.name} · Athlima`;
+  }catch(e){
+    el.innerHTML = '<div class="loading">Une erreur est survenue. Réessaie plus tard.</div>';
+  }
+}
+load();
+</script>
+</body>
+</html>
